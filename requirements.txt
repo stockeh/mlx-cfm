@@ -1,0 +1,6 @@
+matplotlib==3.9.2
+mlx==0.19.0
+mlx_data==0.0.2
+numpy==2.1.2
+scikit_learn==1.5.2
+tqdm==4.66.5
