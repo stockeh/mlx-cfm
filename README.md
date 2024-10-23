@@ -26,7 +26,7 @@ $$
 L\_{\text{CFM}}(\theta) = \mathrm{E}\_{t, q(z), p_t(x | z)} \lVert v\_\theta(t, x) - u\_t(x | z) \rVert^2,
 $$
 
-where the objective is regress the learned vector field $v_\theta$ and the true conditional vector field $u_t(x | z)$.
+where we regress the learned vector field $v_\theta$ and the true conditional vector field $u_t(x | z)$.
 
 **Sampling**: now that we have our vector field, we can sample from our prior $\mathbf{x} \sim q_0(\mathbf{x})$, and run a forward ODE solver (e.g., fixed Euler or higher-order, adaptive Dormand–Prince) generally defined by 
 
