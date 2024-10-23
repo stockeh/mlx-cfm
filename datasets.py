@@ -90,4 +90,5 @@ if __name__ == '__main__':
                for t in T], alpha=0.8)
 
     fig.tight_layout()
+    fig.savefig('media/moons.png', dpi=300, bbox_inches='tight')
     plt.show()
