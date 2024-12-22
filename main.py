@@ -23,7 +23,7 @@ parser.add_argument(
     "--solver",
     type=str,
     default="euler",
-    choices=["dopri5", "euler"],
+    choices=["euler", "midpoint", "dopri5"],
     help="ODE solver",
 )
 parser.add_argument("-b", "--batch_size", type=int, default=512, help="batch size")

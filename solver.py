@@ -10,13 +10,60 @@ class SolverTemplate:
         max_factor: float = 10,
         safety: float = 0.9,
     ):
+        """
+        Parameters
+        ----------
+        order : int
+            The numerical order of the ODE solver.
+        min_factor : float, optional
+            Minimum safety factor for adaptive stepsize control.
+        max_factor : float, optional
+            Maximum safety factor for adaptive stepsize control.
+        safety : float, optional
+            Typical safety factor, e.g., 0.9.
+        """
         super().__init__()
         self.order = order
         self.min_factor = mx.array([min_factor])
         self.max_factor = mx.array([max_factor])
         self.safety = mx.array([safety])
 
-    def step(self, f, x, t, dt, k1, args=None):
+    def step(self, f, x, t, dt, k1=None, args=None):
+        """
+        Perform one ODE integration step.
+
+        Parameters
+        ----------
+        f : callable
+            The vector field, i.e. f(t, x).
+        x : mx.array or similar
+            Current state at time t.
+        t : mx.array or float
+            Current time.
+        dt : mx.array or float
+            Timestep to use for the step.
+        k1 : mx.array or None, optional
+            If provided, this is f(t, x) from the previous step
+            (or precomputed slope). Some solvers can re-use it.
+        args : dict or None, optional
+            Additional arguments passed to the ODE function (if needed).
+
+        Returns
+        -------
+        f_new : mx.array or None
+            Slope at the new time/state, i.e. f(t+dt, x_new).
+            If the solver doesn't need it (like Euler, Midpoint),
+            it can be None.
+        x_new : mx.array
+            The new state after performing this step, i.e. x_{n+1}.
+        err_est : mx.array or None
+            An estimate of the local truncation error (for adaptive methods).
+            If the solver is fixed-step or doesn't compute local errors,
+            it can be None.
+        stages : tuple of mx.array or None
+            The intermediate stage slopes (k1, k2, ...) used by the solver.
+            If not needed, it can be None.
+        """
         raise NotImplementedError
 
 
@@ -28,13 +75,35 @@ class Euler(SolverTemplate):
         self.stepping_class = "fixed"
 
     def step(self, f, x, t, dt, k1=None, args=None):
-        if k1 == None:
+        if k1 is None:
             k1 = f(t, x)
         x_sol = x + dt * k1
-        return None, x_sol, None
+        return None, x_sol, None, None
 
     def __repr__(self):
         return "Euler"
+
+
+class Midpoint(SolverTemplate):
+    def __init__(self, dtype=mx.float32):
+        """Explicit Midpoint (RK2) ODE stepper, order 2"""
+        super().__init__(order=2)
+        self.dtype = dtype
+        self.stepping_class = "fixed"
+
+    def step(self, f, x, t, dt, k1=None, args=None):
+        if k1 is None:
+            k1 = f(t, x)
+
+        x_mid = x + 0.5 * dt * k1
+        k2 = f(t + 0.5 * dt, x_mid)
+        x_sol = x + dt * k2
+
+        stages = (k1, k2)
+        return None, x_sol, None, stages
+
+    def __repr__(self):
+        return "Midpoint"
 
 
 def construct_dopri5(dtype):
@@ -149,7 +218,11 @@ class DormandPrince45(SolverTemplate):
         return "DormandPrince45"
 
 
-SOLVER_DICT = {"dopri5": DormandPrince45, "euler": Euler}
+SOLVER_DICT = {
+    "dopri5": DormandPrince45,
+    "euler": Euler,
+    "midpoint": Midpoint,
+}
 
 
 def str_to_solver(solver_name, dtype=mx.float32):
