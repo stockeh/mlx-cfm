@@ -20,13 +20,44 @@ $$
 p\_t(x) = \int p\_t(x | z) q(z)\\, dz,
 $$
 
-where $p_t(x | z) = \mathcal{N}(\mu_t(z), \sigma_t^2)$ is the conditional probability path, with $z$ as a latent variable and $q(z)$ as the prior distribution. The dynamics of the conditional probability path are now governed by a conditional vector field $u_t(x | z)$. We approximate this using a neural network, parameterizing the time-dependent vector field $v_\theta\\,:\\,[0,1] \times \mathbb{R}^d \to \mathbb{R}^d$. The network is trained using the conditional flow matching loss:
+where $p_t(x | z) = \mathcal{N}\left(x | \mu_t(z), \sigma_t^2 I\right)$ is the conditional probability path, with a latent $z$ sampled from a prior distribution $q(z)$. The dynamics of the conditional probability path are now governed by a conditional vector field $u_t(x | z)$. We approximate this using a neural network, parameterizing the time-dependent vector field $v_\theta\\,:\\,[0,1] \times \mathbb{R}^d \to \mathbb{R}^d$. We train the network by regressing the conditional flow matching loss:
 
 $$
 L\_{\text{CFM}}(\theta) = \mathrm{E}\_{t, q(z), p_t(x | z)} \lVert v\_\theta(t, x) - u\_t(x | z) \rVert^2,
 $$
 
-where we regress the learned vector field $v_\theta$ and the true conditional vector field $u_t(x | z)$.
+such that $t \sim U(0,1), \\; z \sim q(z), \\; \text{and} \\; x_t \sim p_t(x|z)$. But, how do we compute $u_t(x|z)$? Well, assuming a Gaussian probability path, we have a unique vector field (Theorem 3; Lipman et al. 2023) given by,
+
+$$
+u\_t(x | z) = \frac{\dot{\sigma}\_t (z)}{\sigma\_t (z)}\\,\left(x - \mu\_t(z)\right) + \dot{\mu}\_t(z),
+$$
+
+where $\dot{\mu}$ and $\dot{\sigma}$ are the time derivatives of the mean and standard deviation. If we consider $\mathbf{z} \equiv (\mathbf{x}_0, \mathbf{x}_1)$ and $q(z) = q_0(x_0)q_1(x_1)$ with
+
+$$
+\begin{align} 
+\mu\_t(z) &= tx\_1 + (1 - t) x\_0, \\
+\sigma\_t(z) &= \sigma\_{> 0},
+\end{align}
+$$
+
+then we have independent conditional flow matching (Tong et al. 2023) with the resulting conditional probability path and vector field
+
+$$
+\begin{align} 
+p_t(x | z) &= \mathcal{N}\left(x | tx\_1 + (1 - t) x\_0, \sigma^2\right), \\
+u_t(x | z) &= x\_1 - x\_0.
+\end{align}
+$$
+
+Alternatively, the variance-preserving stochastic interpolant (Albergo & Vanden-Eijnden 2023) has the form 
+
+$$
+\begin{align} 
+\mu\_t(z) = \cos \left(\pi t / 2\right)x\_0 + \sin \left(\pi t / 2 \right)x\_1 \\quad\text{and}\\quad \sigma\_t(z) = 0,\\
+u_t(x | z) = \frac{\pi}{2} \left( \cos\left(\pi t / 2\right) x_1 - \sin\left(\pi t / 2\right) x_0 \right).
+\end{align}
+$$
 
 **Sampling**: now that we have our vector field, we can sample from our prior $\mathbf{x} \sim q_0(\mathbf{x})$, and run a forward ODE solver (e.g., fixed Euler or higher-order, adaptive Dormand–Prince) generally defined by 
 
