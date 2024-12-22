@@ -10,13 +10,13 @@ def pad_t_like_x(t, x):
 
 class ConditionalFlowMatcher:
     """
-    Improving and Generalizing Flow-Based Generative Models 
+    Improving and Generalizing Flow-Based Generative Models
     with minibatch optimal transport, Tong et al. (2023)
     """
 
-    def __init__(self,
-                 sigma: Union[float, int] = 0.0,
-                 name: str = 'Conditional Flow Matching'):
+    def __init__(
+        self, sigma: Union[float, int] = 0.0, name: str = "Conditional Flow Matching"
+    ):
         self.sigma = sigma
         self.name = name
 
@@ -31,7 +31,7 @@ class ConditionalFlowMatcher:
         return self.sigma
 
     def sample_xt(self, x0, x1, t, epsilon):
-        """sample from the probability path N(t * x1 + (1 - t) * x0, sigma), 
+        """sample from the probability path N(t * x1 + (1 - t) * x0, sigma),
         see (Eq.14)"""
         mu_t = self.mu_t(x0, x1, t)
         sigma_t = self.sigma_t(t)
@@ -47,7 +47,7 @@ class ConditionalFlowMatcher:
         return mx.random.normal(x.shape, dtype=x.dtype)
 
     def sample_location_and_conditional_flow(self, x0, x1, t=None, return_noise=False):
-        """sample xt (drawn from N(t * x1 + (1 - t) * x0, sigma)) and 
+        """sample xt (drawn from N(t * x1 + (1 - t) * x0, sigma)) and
         the conditional vector field ut(x1|x0) = x1 - x0, see (Eq.15)"""
         if t is None:
             t = mx.random.uniform(shape=(x0.shape[0],), dtype=x0.dtype)
@@ -67,12 +67,12 @@ class ConditionalFlowMatcher:
 
 class VPConditionalFlowMatcher(ConditionalFlowMatcher):
     """
-    Stochastic Interpolants: A Unifying Framework for 
+    Stochastic Interpolants: A Unifying Framework for
     Flows and Diffusions, Albergo et al. (2023)
     """
 
     def __init__(self, sigma: Union[float, int] = 0.0):
-        super().__init__(sigma, name='Variance-Preserving CFM')
+        super().__init__(sigma, name="Variance-Preserving CFM")
 
     def mu_t(self, x0, x1, t):
         """mean of the probability path (Eq.5)"""
@@ -88,14 +88,40 @@ class VPConditionalFlowMatcher(ConditionalFlowMatcher):
         return mx.pi / 2 * (mx.cos(mx.pi / 2 * t) * x1 - mx.sin(mx.pi / 2 * t) * x0)
 
 
+class FlowMatching(ConditionalFlowMatcher):
+    """
+    Flow Matching for Generative Modeling, Lipman et al. (2023)
+    """
+
+    def __init__(self, sigma: Union[float, int] = 0.0):
+        super().__init__(sigma, name="Flow Matching")
+
+    def mu_t(self, x0, x1, t):
+        """mean of the probability path"""
+        del x0
+        t = pad_t_like_x(t, x1)
+        return t * x1
+
+    def sigma_t(self, t):
+        """std of the probability path"""
+        return t * self.sigma - t + 1
+
+    def conditional_flow(self, x0, x1, t, xt):
+        """conditional vector field ut(x1|x0) = (x1 - (1 - sigma) xt) / (1 - (1 - sigma) t),"""
+        del x0
+        t = pad_t_like_x(t, x1)
+        return (x1 - (1 - self.sigma) * xt) / (1 - (1 - self.sigma) * t)
+
+
 CFM_DICT = {
-    'cfm': ConditionalFlowMatcher,
-    'vp': VPConditionalFlowMatcher
+    "cfm": ConditionalFlowMatcher,
+    "vp": VPConditionalFlowMatcher,
+    "fm": FlowMatching,
 }
 
 
 def str_to_cfm(cfm_name, sigma=0.1):
     if cfm_name not in CFM_DICT:
-        raise ValueError(f'Invalid solver: {cfm_name}')
+        raise ValueError(f"Invalid solver: {cfm_name}")
     solver = CFM_DICT[cfm_name]
     return solver(sigma)

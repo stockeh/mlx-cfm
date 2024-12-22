@@ -23,7 +23,7 @@ def init_step(f, f0, x0, t0, order, atol, rtol):
     if d1 <= 1e-15 and d2 <= 1e-15:
         h1 = mx.maximum(mx.array(1e-6, dtype=t0.dtype), h0 * 1e-3)
     else:
-        h1 = (0.01 / mx.maximum(d1, d2)) ** (1. / float(order + 1))
+        h1 = (0.01 / mx.maximum(d1, d2)) ** (1.0 / float(order + 1))
     dt = mx.minimum(100 * h0, h1)
     return dt
 
@@ -34,13 +34,26 @@ def adapt_step(dt, error_ratio, safety, min_factor, max_factor, order):
     if error_ratio < 1:
         min_factor = mx.ones_like(dt)
     exponent = mx.array(order, dtype=dt.dtype).reciprocal()
-    factor = mx.minimum(max_factor, mx.maximum(
-        safety / error_ratio ** exponent, min_factor))
+    factor = mx.minimum(
+        max_factor, mx.maximum(safety / error_ratio**exponent, min_factor)
+    )
     return dt * factor
 
 
-def adaptive_odeint(f, k1, x, dt, t_span, solver, atol=1e-4, rtol=1e-4, args=None,
-                    interpolator=None, return_all_eval=False, seminorm=(False, None)):
+def adaptive_odeint(
+    f,
+    k1,
+    x,
+    dt,
+    t_span,
+    solver,
+    atol=1e-4,
+    rtol=1e-4,
+    args=None,
+    interpolator=None,
+    return_all_eval=False,
+    seminorm=(False, None),
+):
     t_eval, t, T = t_span[1:], t_span[:1], t_span[-1]
     ckpt_counter, ckpt_flag = 0, False
     eval_times, sol = [t], [x]
@@ -61,13 +74,13 @@ def adaptive_odeint(f, k1, x, dt, t_span, solver, atol=1e-4, rtol=1e-4, args=Non
         if seminorm[0] == True:
             state_dim = seminorm[1]
             error = x_err[:state_dim]
-            error_scaled = error / \
-                (atol + rtol *
-                 mx.maximum(mx.abs(x[:state_dim]), mx.abs(x_new[:state_dim])))
+            error_scaled = error / (
+                atol
+                + rtol * mx.maximum(mx.abs(x[:state_dim]), mx.abs(x_new[:state_dim]))
+            )
         else:
             error = x_err
-            error_scaled = error / \
-                (atol + rtol * mx.maximum(mx.abs(x), mx.abs(x_new)))
+            error_scaled = error / (atol + rtol * mx.maximum(mx.abs(x), mx.abs(x_new)))
         error_ratio = hairer_norm(error_scaled)
         accept_step = error_ratio <= 1
 
@@ -77,14 +90,13 @@ def adaptive_odeint(f, k1, x, dt, t_span, solver, atol=1e-4, rtol=1e-4, args=Non
                 coefs = None
                 while (ckpt_counter < len(t_eval)) and (t + dt > t_eval[ckpt_counter]):
                     t0, t1 = t, t + dt
-                    x_mid = x + dt * \
-                        sum([interpolator.bmid[i] * stages[i]
-                            for i in range(len(stages))])
+                    x_mid = x + dt * sum(
+                        [interpolator.bmid[i] * stages[i] for i in range(len(stages))]
+                    )
                     f0, f1, x0, x1 = k1, f_new, x, x_new
                     if coefs == None:
                         coefs = interpolator.fit(dt, f0, f1, x0, x1, x_mid)
-                    x_in = interpolator.evaluate(
-                        coefs, t0, t1, t_eval[ckpt_counter])
+                    x_in = interpolator.evaluate(coefs, t0, t1, t_eval[ckpt_counter])
                     sol.append(x_in)
                     eval_times.append(t_eval[ckpt_counter][None])
                     ckpt_counter += 1
@@ -104,11 +116,14 @@ def adaptive_odeint(f, k1, x, dt, t_span, solver, atol=1e-4, rtol=1e-4, args=Non
             dt = dt_old - dt
             ckpt_flag = False
 
-        dt = adapt_step(dt, error_ratio,
-                        solver.safety,
-                        solver.min_factor,
-                        solver.max_factor,
-                        solver.order)
+        dt = adapt_step(
+            dt,
+            error_ratio,
+            solver.safety,
+            solver.min_factor,
+            solver.max_factor,
+            solver.order,
+        )
 
     return mx.concatenate(eval_times), mx.stack(sol)
 
@@ -120,8 +135,9 @@ def fixed_odeint(f, x, t_span, solver, save_at=(), args=None):
     if not isinstance(save_at, mx.array):
         save_at = mx.array(save_at)
 
-    assert all(mx.isclose(t, save_at).sum() == 1 for t in save_at), \
-        "each element of save_at [torch.Tensor] must be contained in t_span [torch.Tensor] once and only once"
+    assert all(
+        mx.isclose(t, save_at).sum() == 1 for t in save_at
+    ), "each element of save_at [torch.Tensor] must be contained in t_span [torch.Tensor] once and only once"
 
     t, T, dt = t_span[0], t_span[-1], t_span[1] - t_span[0]
 
@@ -137,7 +153,7 @@ def fixed_odeint(f, x, t_span, solver, save_at=(), args=None):
         if mx.isclose(t, save_at).sum():
             sol.append(x)
         if steps < len(t_span) - 1:
-            dt = t_span[steps+1] - t
+            dt = t_span[steps + 1] - t
         steps += 1
 
     if isinstance(sol[0], dict):
@@ -147,14 +163,13 @@ def fixed_odeint(f, x, t_span, solver, save_at=(), args=None):
     elif isinstance(sol[0], mx.array):
         final_out = mx.stack(sol)
     else:
-        raise NotImplementedError(
-            f"{type(x)} is not supported as the state variable")
+        raise NotImplementedError(f"{type(x)} is not supported as the state variable")
 
     return save_at, final_out
 
 
 def odeint(f, x, t_span, solver, atol: float = 1e-3, rtol: float = 1e-3):
-    if solver.stepping_class == 'fixed':
+    if solver.stepping_class == "fixed":
         return fixed_odeint(f, x, t_span, solver, args=None)
 
     t = t_span[0]
@@ -164,7 +179,7 @@ def odeint(f, x, t_span, solver, atol: float = 1e-3, rtol: float = 1e-3):
 
 
 class NeuralODE:
-    def __init__(self, vector_field, solver='dopri5', atol=1e-4, rtol=1e-4):
+    def __init__(self, vector_field, solver="dopri5", atol=1e-4, rtol=1e-4):
         self.vf = vector_field
         self.solver = str_to_solver(solver)
         self.atol = atol
@@ -174,9 +189,7 @@ class NeuralODE:
         raise NotImplementedError
 
     def trajectory(self, x, t_span):
-        _, sol = odeint(
-            self.vf, x, t_span, self.solver, atol=self.atol, rtol=self.rtol
-        )
+        _, sol = odeint(self.vf, x, t_span, self.solver, atol=self.atol, rtol=self.rtol)
         return sol
 
     def __repr__(self):
@@ -185,7 +198,8 @@ class NeuralODE:
         \n\t- tolerances: relative {self.rtol} absolute {self.atol}"
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
+
     def vector_field(t, x):
         # (dx/dt = -x)
         return -x
@@ -199,10 +213,11 @@ if __name__ == '__main__':
 
     #! plotting
     import matplotlib.pyplot as plt
+
     fig, ax = plt.subplots(1, 1, figsize=(5, 4))
-    ax.plot(t_span, solution[:, 0, 0], lw=2, color='k')
-    ax.set_xlabel('Time')
-    ax.set_ylabel('x(t)')
+    ax.plot(t_span, solution[:, 0, 0], lw=2, color="k")
+    ax.set_xlabel("Time")
+    ax.set_ylabel("x(t)")
     ax.grid(alpha=0.2)
     fig.tight_layout()
     plt.show()

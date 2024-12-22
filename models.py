@@ -12,12 +12,15 @@ def pair(t):
 
 
 def get_activation(activation_f: str) -> Type:
-    package_name = 'mlx.nn.layers.activations'
+    package_name = "mlx.nn.layers.activations"
     module = importlib.import_module(package_name)
 
     activations = [getattr(module, attr) for attr in dir(module)]
-    activations = [cls for cls in activations if isinstance(
-        cls, type) and issubclass(cls, nn.Module)]
+    activations = [
+        cls
+        for cls in activations
+        if isinstance(cls, type) and issubclass(cls, nn.Module)
+    ]
     names = [cls.__name__.lower() for cls in activations]
 
     try:
@@ -25,7 +28,8 @@ def get_activation(activation_f: str) -> Type:
         return activations[index]
     except ValueError:
         raise NotImplementedError(
-            f'get_activation: {activation_f=} is not yet implemented.')
+            f"get_activation: {activation_f=} is not yet implemented."
+        )
 
 
 class Base(nn.Module):
@@ -43,15 +47,21 @@ class Base(nn.Module):
 
     def summary(self):
         print(self)
-        print(f'Number of parameters: {self.num_params}')
+        print(f"Number of parameters: {self.num_params}")
 
     def __call__(self, x: mx.array) -> mx.array:
-        raise NotImplementedError('Subclass must implement this method')
+        raise NotImplementedError("Subclass must implement this method")
 
 
 class MLP(Base):
-    def __init__(self, n_inputs: int, n_hiddens_list: Union[List, int],
-                 n_outputs: int, activation_f: str = 'selu', time_varying=False):
+    def __init__(
+        self,
+        n_inputs: int,
+        n_hiddens_list: Union[List, int],
+        n_outputs: int,
+        activation_f: str = "selu",
+        time_varying=False,
+    ):
         super().__init__()
 
         if isinstance(n_hiddens_list, int):

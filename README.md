@@ -44,7 +44,7 @@ python main.py --method vp --solver dopri5
 ```
 - **`main.py`**: training and sampling
 - **`models.py`**: neural net definition
-- **`datasets.py`**: generate prior and target data
+- **`data.py`**: generate prior and target data
 - **`cfm.py`**: flow matching variants
 - **`odeint.py`**: adaptive and fixed numerical integrators
 - **`solver.py`**: solver definition for integrator
